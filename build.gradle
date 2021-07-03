@@ -1,0 +1,62 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
+    id "com.palantir.docker" version "0.26.0"
+    id "com.palantir.docker-run" version "0.26.0"
+    id "com.github.anivanovic.jarscript" version "0.1.0"
+    id 'application'
+}
+
+group 'com.github.anivanovic'
+version '0.1.1'
+
+repositories {
+    mavenCentral()
+}
+
+application {
+    mainClassName = "com.github.anivanovic.stockmine.ServerKt"
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'com.github.anivanovic.stockmine.ServerKt'
+        )
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    implementation "io.ktor:ktor-server-core:$ktor_version"
+    implementation "io.ktor:ktor-server-netty:$ktor_version"
+    implementation "io.ktor:ktor-server-sessions:$ktor_version"
+    implementation "io.ktor:ktor-auth:$ktor_version"
+    implementation "ch.qos.logback:logback-classic:1.2.3"
+
+    runtime "io.netty:netty-transport-native-kqueue:4.1.63.Final"
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+docker {
+    name "$project.name:$project.version"
+    files "$buildDir/$libsDirName/$project.name"
+    tag "Gcp", "gcr.io/stockmine-309612/$project.name:$project.version"
+
+    dependsOn tasks.findByName("jarscript")
+}
+
+dockerRun {
+    name project.name
+    image "$project.name:$project.version"
+    ports "8080:8080"
+    clean true
+}
