@@ -1,0 +1,47 @@
+name: GCP Deploy
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  deploy:
+
+    name: Setup Gcloud Account
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT }}/${{ secrets.GCP_APP }}
+    steps:
+
+      - name: Login
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+          service_account_email: ${{ secrets.GCP_SERVICE_EMAIL }}
+          service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker --quiet
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt-openj9'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Push Docker image
+        run: ./gradlew dockerPushGcp
+
+      - name: Deploy Docker image
+        run: gcloud run deploy ${{ secrets.GCP_PROJECT }} --image $IMAGE_NAME --region us-central1 --platform managed
