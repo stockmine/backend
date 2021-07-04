@@ -1,3 +1,3 @@
-FROM adoptopenjdk/openjdk12
-ADD ./web /opt/web
+FROM adoptopenjdk/openjdk16-openj9
+ADD ./build/libs/web /opt/web
 CMD ["/opt/web"]
