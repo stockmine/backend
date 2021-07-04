@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ master ]
 
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+  SERVICE: backend
+  REGION: europe-west1
+
 jobs:
   deploy:
 
@@ -15,15 +20,11 @@ jobs:
       IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT }}/${{ secrets.GCP_APP }}
     steps:
 
-      - name: Login
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.2.0
         with:
-          project_id: ${{ secrets.GCP_PROJECT }}
-          service_account_email: ${{ secrets.GCP_SERVICE_EMAIL }}
-          service_account_key: ${{ secrets.GCP_CREDENTIALS }}
-
-      - name: Configure Docker
-        run: gcloud auth configure-docker --quiet
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
 
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -34,6 +35,9 @@ jobs:
           java-version: '11'
           distribution: 'adopt-openj9'
 
+      - name: Configure Docker
+        run: gcloud auth configure-docker
+
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v1
 
@@ -43,5 +47,10 @@ jobs:
       - name: Push Docker image
         run: ./gradlew dockerPushGcp
 
-      - name: Deploy Docker image
-        run: gcloud run deploy ${{ secrets.GCP_PROJECT }} --image $IMAGE_NAME --region us-central1 --platform managed
+      - name: Deploy to Cloud Run
+        run: |-
+          gcloud run deploy ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} \
+            --platform "managed" \
+            --quiet
