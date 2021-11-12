@@ -1,74 +1,44 @@
 package com.github.anivanovic.stockmine
 
 import io.ktor.application.*
-import io.ktor.auth.*
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.netty.*
-import io.ktor.sessions.*
-import java.util.function.Function
+import java.util.*
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+var REDDIT_AUTH = "https://www.reddit.com/api/v1/access_token"
+val client = HttpClient(CIO)
+
 @JvmOverloads
 fun Application.module(testing: Boolean = false, development: Boolean = false) {
-//    install(Sessions) {
-//        cookie<UserIdPrincipal>("auth", SessionStorageMemory()) {
-//            cookie.path = "/"
-//            cookie.extensions["SameSite"] = "lax"
-//        }
-//    }
-//    install(Authentication) {
-//        form("form") {
-//            userParamName = "uname"
-//            passwordParamName = "psw"
-//            validate { cred ->
-//                if (cred.name == "antonije" && cred.password == "admin123") {
-//                    UserIdPrincipal(cred.name)
-//                } else {
-//                    null
-//                }
-//            }
-//            challenge {
-//                val errors = call.authentication.allFailures;
-//                when (errors.firstOrNull()) {
-//                    AuthenticationFailedCause.InvalidCredentials -> call.respondRedirect("/login?invalid")
-//                    AuthenticationFailedCause.NoCredentials -> call.respondRedirect("/login?no")
-//                    else -> call.respondRedirect("/login")
-//                }
-//            }
-//        }
-//        session<UserIdPrincipal>("session") {
-//            validate { session -> session }
-//            challenge {
-//                call.respondRedirect("/login?no")
-//            }
-//        }s
-//    }
     routing {
-//        authenticate("session") {
-            get("/") {
-//                val principal = call.principal<UserIdPrincipal>()
-//                if (principal == null) {
-//                    call.respondRedirect("/login");
-//                } else {
-                    call.respondText("Hello from kako ovo volim brajo moj!")
-//                }
+        get("/") {
+            call.respond("Hello from me")
+        }
+        static("/static") {
+            resources("files")
+        }
+
+        get("/reddit-auth") {
+            client.request(REDDIT_AUTH) {
+                method = HttpMethod.Get
+                parameter("client_id", "tiL3UaYvQqnzkiex7pRciQ")
+                parameter("response_type", "code")
+                parameter("state", UUID.randomUUID())
+                parameter("redirect_uri", "https://backend-lf3ty7mjqq-ew.a.run.app/reddit")
+                parameter("duration", "permanent")
+                parameter("scope", "read")
             }
-//            static("/static") {
-//                resources("files")
-//            }
-            static("/files") {
-                resources("dist");
-            }
-//        }
-//        authenticate("form") {
-//            post("/login") {
-//                val principal = call.principal<UserIdPrincipal>()!!
-//                call.sessions.set(principal)
-//                call.respondRedirect("/")
-//            }
-//        }
+        }
+        get("/reddit") {
+            call.respond("got reddit code " + call.request.queryParameters["code"])
+        }
     }
 }
